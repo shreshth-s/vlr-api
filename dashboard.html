@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VLR.gg API Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f1115;
+      color: #e4e4e4;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    h1 { text-align: center; margin-bottom: 10px; color: #ff4655; }
+    .subtitle { text-align: center; color: #666; margin-bottom: 20px; font-size: 14px; }
+    h2 { color: #ff4655; margin-bottom: 15px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+    h2 .badge { background: #2a2d35; padding: 2px 8px; border-radius: 4px; font-size: 12px; color: #888; }
+    h3 { color: #aaa; font-size: 14px; margin: 15px 0 10px; }
+
+    .controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+    .btn {
+      background: #ff4655;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn:hover { background: #e03e4a; }
+    .btn.secondary { background: #2a2d35; }
+    .btn.secondary:hover { background: #3a3d45; }
+
+    select {
+      background: #1a1d24;
+      color: #e4e4e4;
+      border: 1px solid #2a2d35;
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 20px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+    .card {
+      background: #1a1d24;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #2a2d35;
+    }
+    .card.wide { grid-column: span 2; }
+    @media (max-width: 900px) { .card.wide { grid-column: span 1; } }
+
+    /* Match styles */
+    .match {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: #22252d;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .match:last-child { margin-bottom: 0; }
+    .team { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .team.right { justify-content: flex-end; text-align: right; }
+    .team-logo { width: 24px; height: 24px; border-radius: 4px; }
+    .score { font-weight: bold; font-size: 20px; color: #ff4655; min-width: 30px; text-align: center; }
+    .vs { color: #666; margin: 0 15px; font-size: 12px; }
+    .match-meta { font-size: 11px; color: #666; margin-top: 4px; }
+    .live-badge {
+      background: #ff4655;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .eta { color: #4ade80; font-size: 12px; font-weight: 500; }
+
+    /* Player stats table */
+    .stats-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .stats-table th {
+      text-align: left;
+      padding: 8px;
+      border-bottom: 1px solid #2a2d35;
+      color: #888;
+      font-weight: 500;
+      font-size: 11px;
+    }
+    .stats-table td { padding: 8px; border-bottom: 1px solid #22252d; }
+    .stats-table tr:hover { background: #22252d; }
+    .stats-table .rank { color: #ff4655; font-weight: bold; width: 30px; }
+    .stats-table .player-name { font-weight: 500; }
+    .stats-table .stat { text-align: center; }
+    .stats-table .stat.highlight { color: #4ade80; font-weight: 500; }
+    .stats-table .agents { color: #888; font-size: 11px; }
+
+    /* Player card */
+    .player-card {
+      display: flex;
+      gap: 15px;
+      padding: 15px;
+      background: #22252d;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .player-card:last-child { margin-bottom: 0; }
+    .player-avatar {
+      width: 60px;
+      height: 60px;
+      border-radius: 8px;
+      background: #2a2d35;
+    }
+    .player-info { flex: 1; }
+    .player-name-large { font-size: 18px; font-weight: 600; }
+    .player-team { color: #888; font-size: 13px; }
+    .player-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .player-stat {
+      text-align: center;
+      padding: 8px;
+      background: #1a1d24;
+      border-radius: 6px;
+    }
+    .player-stat-value { font-size: 18px; font-weight: 600; color: #4ade80; }
+    .player-stat-label { font-size: 10px; color: #888; margin-top: 2px; }
+
+    /* Team rankings */
+    .team-row {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      background: #22252d;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      gap: 12px;
+    }
+    .team-row:last-child { margin-bottom: 0; }
+    .team-rank {
+      font-weight: bold;
+      color: #ff4655;
+      width: 30px;
+      text-align: center;
+    }
+    .team-logo-large { width: 32px; height: 32px; border-radius: 4px; background: #2a2d35; }
+    .team-name { flex: 1; font-weight: 500; }
+    .team-rating { color: #4ade80; font-weight: 500; }
+    .team-record { color: #888; font-size: 12px; }
+
+    /* Events */
+    .event-item {
+      padding: 12px;
+      background: #22252d;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .event-item:last-child { margin-bottom: 0; }
+    .event-logo { width: 40px; height: 40px; border-radius: 6px; background: #2a2d35; }
+    .event-info { flex: 1; }
+    .event-name { font-weight: 500; margin-bottom: 4px; }
+    .event-meta { color: #888; font-size: 12px; }
+    .event-status {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .event-status.ongoing { background: #4ade8033; color: #4ade80; }
+    .event-status.upcoming { background: #3b82f633; color: #3b82f6; }
+
+    /* Radar chart placeholder */
+    .radar-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 300px;
+      background: #22252d;
+      border-radius: 8px;
+      position: relative;
+    }
+    .radar-chart {
+      width: 280px;
+      height: 280px;
+    }
+
+    /* Role analysis */
+    .role-distribution {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .role-bar {
+      flex: 1;
+      text-align: center;
+    }
+    .role-bar-fill {
+      height: 8px;
+      background: #ff4655;
+      border-radius: 4px;
+      margin-bottom: 5px;
+    }
+    .role-bar-label { font-size: 11px; color: #888; }
+    .role-bar-value { font-size: 13px; font-weight: 500; }
+
+    .loading { text-align: center; padding: 40px; color: #888; }
+    .error { color: #ff4655; text-align: center; padding: 20px; }
+    .no-data { color: #666; text-align: center; padding: 20px; }
+    .last-updated { text-align: center; color: #666; margin-top: 20px; font-size: 12px; }
+
+    /* Stat highlight colors */
+    .stat-high { color: #4ade80; }
+    .stat-med { color: #fbbf24; }
+    .stat-low { color: #888; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 5px; margin-bottom: 15px; }
+    .tab {
+      padding: 8px 16px;
+      background: #22252d;
+      border: none;
+      color: #888;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .tab.active { background: #ff4655; color: white; }
+    .tab:hover:not(.active) { background: #2a2d35; }
+  </style>
+</head>
+<body>
+  <h1>VLR.gg API Dashboard</h1>
+  <p class="subtitle">All 20+ stats from the API displayed in real-time</p>
+
+  <div class="controls">
+    <button class="btn" onclick="fetchAll()">Refresh All</button>
+    <select id="region" onchange="fetchAll()">
+      <option value="na">North America</option>
+      <option value="eu">Europe</option>
+      <option value="ap">Asia Pacific</option>
+      <option value="br">Brazil</option>
+      <option value="kr">Korea</option>
+      <option value="jp">Japan</option>
+    </select>
+    <select id="timespan" onchange="fetchAll()">
+      <option value="60">Last 60 Days</option>
+      <option value="30">Last 30 Days</option>
+      <option value="90">Last 90 Days</option>
+      <option value="all">All Time</option>
+    </select>
+  </div>
+
+  <div class="dashboard">
+    <!-- Live Matches -->
+    <div class="card">
+      <h2>Live Matches <span class="badge" id="live-count">0</span></h2>
+      <div id="live-matches"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Upcoming Matches -->
+    <div class="card">
+      <h2>Upcoming Matches <span class="badge" id="upcoming-count">0</span></h2>
+      <div id="upcoming-matches"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Recent Results -->
+    <div class="card">
+      <h2>Recent Results</h2>
+      <div id="recent-results"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Team Rankings -->
+    <div class="card">
+      <h2>Team Rankings <span class="badge" id="region-label">NA</span></h2>
+      <div id="team-rankings"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Stats Leaderboard - Full Stats -->
+    <div class="card wide">
+      <h2>Player Stats Leaderboard <span class="badge">All 20+ Stats</span></h2>
+      <div id="stats-leaderboard"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Top Player Detailed View -->
+    <div class="card">
+      <h2>Top Player Profile</h2>
+      <div id="top-player"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Radar Chart Stats -->
+    <div class="card">
+      <h2>Radar Chart Stats</h2>
+      <div id="radar-stats"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Ongoing Events -->
+    <div class="card">
+      <h2>Ongoing Events</h2>
+      <div id="events"><div class="loading">Loading...</div></div>
+    </div>
+
+    <!-- Match Details Example -->
+    <div class="card wide">
+      <h2>Match Details <span class="badge">Per-Map Stats</span></h2>
+      <div id="match-details"><div class="loading">Loading...</div></div>
+    </div>
+  </div>
+
+  <div class="last-updated" id="last-updated"></div>
+
+  <script>
+    const API = 'http://localhost:3000/api';
+    let currentData = {};
+
+    async function fetchJSON(url) {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.success ? data.data : null;
+      } catch (e) {
+        console.error('Fetch error:', e);
+        return null;
+      }
+    }
+
+    function getRegion() { return document.getElementById('region').value; }
+    function getTimespan() { return document.getElementById('timespan').value; }
+
+    // Live Matches
+    async function fetchLive() {
+      const data = await fetchJSON(`${API}/matches/live`);
+      const el = document.getElementById('live-matches');
+      document.getElementById('live-count').textContent = data?.length || 0;
+
+      if (!data || data.length === 0) {
+        el.innerHTML = '<div class="no-data">No live matches right now</div>';
+        return;
+      }
+
+      el.innerHTML = data.map(m => `
+        <div class="match">
+          <div class="team">
+            <span>${m.team1.name}</span>
+            <span class="score">${m.team1.score ?? '-'}</span>
+          </div>
+          <div style="text-align:center">
+            <span class="live-badge">LIVE</span>
+            <div class="match-meta">${m.event || ''}</div>
+          </div>
+          <div class="team right">
+            <span class="score">${m.team2.score ?? '-'}</span>
+            <span>${m.team2.name}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Upcoming Matches
+    async function fetchUpcoming() {
+      const data = await fetchJSON(`${API}/matches/upcoming`);
+      const el = document.getElementById('upcoming-matches');
+      document.getElementById('upcoming-count').textContent = data?.length || 0;
+
+      if (!data || data.length === 0) {
+        el.innerHTML = '<div class="no-data">No upcoming matches</div>';
+        return;
+      }
+
+      el.innerHTML = data.slice(0, 5).map(m => `
+        <div class="match">
+          <div class="team"><span>${m.team1.name}</span></div>
+          <div style="text-align:center">
+            <span class="eta">${m.eta || m.matchTime || 'TBD'}</span>
+            <div class="match-meta">${m.event || ''}</div>
+          </div>
+          <div class="team right"><span>${m.team2.name}</span></div>
+        </div>
+      `).join('');
+    }
+
+    // Recent Results
+    async function fetchResults() {
+      const data = await fetchJSON(`${API}/matches/results`);
+      const el = document.getElementById('recent-results');
+
+      if (!data) {
+        el.innerHTML = '<div class="error">Failed to load</div>';
+        return;
+      }
+
+      currentData.results = data;
+      el.innerHTML = data.slice(0, 5).map(m => `
+        <div class="match" style="cursor:pointer" onclick="loadMatchDetails('${m.id}')">
+          <div class="team">
+            <span>${m.team1.name}</span>
+            <span class="score">${m.team1.score ?? '-'}</span>
+          </div>
+          <span class="vs">vs</span>
+          <div class="team right">
+            <span class="score">${m.team2.score ?? '-'}</span>
+            <span>${m.team2.name}</span>
+          </div>
+        </div>
+      `).join('');
+
+      // Load first match details
+      if (data.length > 0) loadMatchDetails(data[0].id);
+    }
+
+    // Team Rankings
+    async function fetchTeamRankings() {
+      const region = getRegion();
+      document.getElementById('region-label').textContent = region.toUpperCase();
+      const data = await fetchJSON(`${API}/teams/rankings/${region}`);
+      const el = document.getElementById('team-rankings');
+
+      if (!data || data.length === 0) {
+        el.innerHTML = '<div class="no-data">No rankings available</div>';
+        return;
+      }
+
+      el.innerHTML = data.slice(0, 8).map((t, i) => `
+        <div class="team-row">
+          <span class="team-rank">#${i + 1}</span>
+          ${t.logo ? `<img src="${t.logo}" class="team-logo-large" onerror="this.style.display='none'">` : ''}
+          <span class="team-name">${t.name}</span>
+          <span class="team-rating">${t.rating || '-'}</span>
+        </div>
+      `).join('');
+    }
+
+    // Stats Leaderboard with ALL stats
+    async function fetchStats() {
+      const region = getRegion();
+      const timespan = getTimespan();
+      const data = await fetchJSON(`${API}/players/stats?region=${region}&timespan=${timespan}&min_rounds=50`);
+      const el = document.getElementById('stats-leaderboard');
+
+      if (!data || data.length === 0) {
+        el.innerHTML = '<div class="no-data">No stats available</div>';
+        return;
+      }
+
+      currentData.stats = data;
+
+      el.innerHTML = `
+        <div style="overflow-x:auto">
+          <table class="stats-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Agents</th>
+                <th>Rnd</th>
+                <th>Rating</th>
+                <th>ACS</th>
+                <th>K/D/A</th>
+                <th>KAST</th>
+                <th>ADR</th>
+                <th>HS%</th>
+                <th>FK</th>
+                <th>FD</th>
+                <th>CL%</th>
+                <th>KMax</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.slice(0, 15).map((e, i) => `
+                <tr>
+                  <td class="rank">${i + 1}</td>
+                  <td class="player-name">${e.player.name}</td>
+                  <td class="agents">${e.agents?.slice(0, 3).join(', ') || '-'}</td>
+                  <td class="stat">${e.stats.rounds}</td>
+                  <td class="stat highlight">${e.stats.rating?.toFixed(2) || '-'}</td>
+                  <td class="stat">${e.stats.acs?.toFixed(0) || '-'}</td>
+                  <td class="stat">${e.stats.totalKills || e.stats.kills || 0}/${e.stats.totalDeaths || e.stats.deaths || 0}/${e.stats.totalAssists || e.stats.assists || 0}</td>
+                  <td class="stat">${e.stats.kast}%</td>
+                  <td class="stat">${e.stats.adr?.toFixed(1) || '-'}</td>
+                  <td class="stat">${e.stats.headshot}%</td>
+                  <td class="stat">${e.stats.totalFirstKills || e.stats.firstKills || '-'}</td>
+                  <td class="stat">${e.stats.totalFirstDeaths || e.stats.firstDeaths || '-'}</td>
+                  <td class="stat ${e.stats.clutchPercent > 20 ? 'highlight' : ''}">${e.stats.clutchPercent || 0}%</td>
+                  <td class="stat">${e.stats.killsMax || '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:15px;color:#888;font-size:12px">
+          Showing: rounds, rating, ACS, K/D/A totals, KAST%, ADR, HS%, FK, FD, Clutch%, KMax
+        </div>
+      `;
+
+      // Load top player details
+      if (data.length > 0) renderTopPlayer(data[0]);
+      renderRadarStats(data.slice(0, 3));
+    }
+
+    // Top Player Profile
+    function renderTopPlayer(entry) {
+      const el = document.getElementById('top-player');
+      const p = entry.player;
+      const s = entry.stats;
+
+      el.innerHTML = `
+        <div class="player-card" style="flex-direction:column">
+          <div style="display:flex;gap:15px;align-items:center">
+            <div>
+              <div class="player-name-large">${p.name}</div>
+              <div class="player-team">${p.team || 'Free Agent'} | ${p.countryCode?.toUpperCase() || ''}</div>
+              <div class="agents" style="margin-top:5px">Agents: ${entry.agents?.join(', ') || '-'}</div>
+            </div>
+          </div>
+          <div class="player-stats-grid" style="grid-template-columns:repeat(5,1fr)">
+            <div class="player-stat">
+              <div class="player-stat-value">${s.rating?.toFixed(2)}</div>
+              <div class="player-stat-label">Rating</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-value">${s.acs?.toFixed(0)}</div>
+              <div class="player-stat-label">ACS</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-value">${s.kast}%</div>
+              <div class="player-stat-label">KAST</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-value">${s.adr?.toFixed(1)}</div>
+              <div class="player-stat-label">ADR</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-value">${s.clutchPercent || 0}%</div>
+              <div class="player-stat-label">Clutch</div>
+            </div>
+          </div>
+          <div class="player-stats-grid" style="grid-template-columns:repeat(6,1fr);margin-top:10px">
+            <div class="player-stat">
+              <div class="player-stat-value" style="color:#e4e4e4">${s.totalKills || s.kills || 0}</div>
+              <div class="player-stat-label">Kills</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-value" style="color:#e4e4e4">${s.totalDeaths || s.deaths || 0}</div>
+              <div class="player-stat-label">Deaths</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-value" style="color:#e4e4e4">${s.totalAssists || s.assists || 0}</div>
+              <div class="player-stat-label">Assists</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-value" style="color:#e4e4e4">${s.totalFirstKills || s.firstKills || 0}</div>
+              <div class="player-stat-label">First Kills</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-value" style="color:#e4e4e4">${s.headshot}%</div>
+              <div class="player-stat-label">HS%</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-value" style="color:#e4e4e4">${s.killsMax || '-'}</div>
+              <div class="player-stat-label">K Max</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Radar Stats Comparison
+    function renderRadarStats(players) {
+      const el = document.getElementById('radar-stats');
+
+      if (!players || players.length === 0) {
+        el.innerHTML = '<div class="no-data">No data for radar</div>';
+        return;
+      }
+
+      // Normalize stats for radar (0-100 scale)
+      const maxValues = {
+        rating: 1.5,
+        acs: 300,
+        kast: 100,
+        adr: 200,
+        clutchPercent: 50,
+        fkpr: 0.25,
+        headshot: 50
+      };
+
+      const colors = ['#ff4655', '#4ade80', '#3b82f6'];
+
+      el.innerHTML = `
+        <div style="margin-bottom:15px">
+          ${players.map((p, i) => `
+            <span style="color:${colors[i]};margin-right:15px;font-size:13px">● ${p.player.name}</span>
+          `).join('')}
+        </div>
+        <div class="radar-container">
+          <svg class="radar-chart" viewBox="0 0 200 200">
+            <!-- Background circles -->
+            ${[20, 40, 60, 80, 100].map(r => `
+              <circle cx="100" cy="100" r="${r * 0.8}" fill="none" stroke="#2a2d35" stroke-width="1"/>
+            `).join('')}
+
+            <!-- Axis lines -->
+            ${['Rating', 'ACS', 'KAST', 'ADR', 'Clutch', 'FKPR', 'HS%'].map((label, i) => {
+              const angle = (i * 360 / 7 - 90) * Math.PI / 180;
+              const x2 = 100 + Math.cos(angle) * 80;
+              const y2 = 100 + Math.sin(angle) * 80;
+              const labelX = 100 + Math.cos(angle) * 95;
+              const labelY = 100 + Math.sin(angle) * 95;
+              return `
+                <line x1="100" y1="100" x2="${x2}" y2="${y2}" stroke="#2a2d35" stroke-width="1"/>
+                <text x="${labelX}" y="${labelY}" fill="#888" font-size="8" text-anchor="middle" dominant-baseline="middle">${label}</text>
+              `;
+            }).join('')}
+
+            <!-- Player polygons -->
+            ${players.map((p, pi) => {
+              const stats = [
+                (p.stats.rating || 0) / maxValues.rating * 100,
+                (p.stats.acs || 0) / maxValues.acs * 100,
+                (p.stats.kast || 0) / maxValues.kast * 100,
+                (p.stats.adr || 0) / maxValues.adr * 100,
+                (p.stats.clutchPercent || 0) / maxValues.clutchPercent * 100,
+                (p.stats.fkpr || 0) / maxValues.fkpr * 100,
+                (p.stats.headshot || 0) / maxValues.headshot * 100
+              ];
+
+              const points = stats.map((v, i) => {
+                const angle = (i * 360 / 7 - 90) * Math.PI / 180;
+                const r = Math.min(v, 100) * 0.8;
+                return `${100 + Math.cos(angle) * r},${100 + Math.sin(angle) * r}`;
+              }).join(' ');
+
+              return `<polygon points="${points}" fill="${colors[pi]}33" stroke="${colors[pi]}" stroke-width="2"/>`;
+            }).join('')}
+          </svg>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:10px;text-align:center">
+          Comparing: Rating, ACS, KAST, ADR, Clutch%, FKPR, HS%
+        </div>
+      `;
+    }
+
+    // Events
+    async function fetchEvents() {
+      const data = await fetchJSON(`${API}/events?status=ongoing`);
+      const el = document.getElementById('events');
+
+      if (!data || data.length === 0) {
+        el.innerHTML = '<div class="no-data">No ongoing events</div>';
+        return;
+      }
+
+      el.innerHTML = data.slice(0, 5).map(e => `
+        <div class="event-item">
+          ${e.logo ? `<img src="${e.logo}" class="event-logo" onerror="this.style.display='none'">` : '<div class="event-logo"></div>'}
+          <div class="event-info">
+            <div class="event-name">${e.name}</div>
+            <div class="event-meta">${e.dates || 'TBD'} | ${e.prizePool || 'TBD'}</div>
+          </div>
+          <span class="event-status ongoing">Live</span>
+        </div>
+      `).join('');
+    }
+
+    // Match Details
+    async function loadMatchDetails(matchId) {
+      const el = document.getElementById('match-details');
+      el.innerHTML = '<div class="loading">Loading match details...</div>';
+
+      const data = await fetchJSON(`${API}/matches/${matchId}`);
+
+      if (!data) {
+        el.innerHTML = '<div class="error">Failed to load match</div>';
+        return;
+      }
+
+      const maps = data.maps || [];
+
+      el.innerHTML = `
+        <div style="margin-bottom:15px">
+          <strong>${data.team1?.name || 'Team 1'}</strong>
+          <span style="color:#ff4655;font-size:20px;margin:0 10px">${data.team1?.score || 0} - ${data.team2?.score || 0}</span>
+          <strong>${data.team2?.name || 'Team 2'}</strong>
+          <span style="color:#888;margin-left:15px">${data.event || ''}</span>
+        </div>
+
+        ${maps.length === 0 ? '<div class="no-data">No map data available</div>' : ''}
+
+        ${maps.slice(0, 2).map(map => `
+          <h3>${map.map} (${map.team1Score}-${map.team2Score})</h3>
+          <div style="overflow-x:auto">
+            <table class="stats-table">
+              <thead>
+                <tr>
+                  <th>Player</th>
+                  <th>Agent</th>
+                  <th>ACS</th>
+                  <th>K</th>
+                  <th>D</th>
+                  <th>A</th>
+                  <th>+/-</th>
+                  <th>KAST</th>
+                  <th>ADR</th>
+                  <th>HS%</th>
+                  <th>FK</th>
+                  <th>FD</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(map.team1Players || []).map(p => `
+                  <tr>
+                    <td>${p.playerName || '-'}</td>
+                    <td>${p.agent || '-'}</td>
+                    <td class="stat highlight">${p.acs || 0}</td>
+                    <td class="stat">${p.kills || 0}</td>
+                    <td class="stat">${p.deaths || 0}</td>
+                    <td class="stat">${p.assists || 0}</td>
+                    <td class="stat">${p.killDeathDiff > 0 ? '+' : ''}${p.killDeathDiff || 0}</td>
+                    <td class="stat">${p.kast || 0}%</td>
+                    <td class="stat">${p.adr || 0}</td>
+                    <td class="stat">${p.headshot || 0}%</td>
+                    <td class="stat">${p.firstKills || 0}</td>
+                    <td class="stat">${p.firstDeaths || 0}</td>
+                  </tr>
+                `).join('')}
+                <tr style="background:#1a1d24"><td colspan="12" style="padding:5px"></td></tr>
+                ${(map.team2Players || []).map(p => `
+                  <tr>
+                    <td>${p.playerName || '-'}</td>
+                    <td>${p.agent || '-'}</td>
+                    <td class="stat highlight">${p.acs || 0}</td>
+                    <td class="stat">${p.kills || 0}</td>
+                    <td class="stat">${p.deaths || 0}</td>
+                    <td class="stat">${p.assists || 0}</td>
+                    <td class="stat">${p.killDeathDiff > 0 ? '+' : ''}${p.killDeathDiff || 0}</td>
+                    <td class="stat">${p.kast || 0}%</td>
+                    <td class="stat">${p.adr || 0}</td>
+                    <td class="stat">${p.headshot || 0}%</td>
+                    <td class="stat">${p.firstKills || 0}</td>
+                    <td class="stat">${p.firstDeaths || 0}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    async function fetchAll() {
+      await Promise.all([
+        fetchLive(),
+        fetchUpcoming(),
+        fetchResults(),
+        fetchTeamRankings(),
+        fetchStats(),
+        fetchEvents()
+      ]);
+      document.getElementById('last-updated').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+    }
+
+    // Initial fetch
+    fetchAll();
+
+    // Auto-refresh every 60 seconds
+    setInterval(fetchAll, 60000);
+  </script>
+</body>
+</html>
