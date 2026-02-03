@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config/index.js';
 import { cache } from './lib/cache.js';
 import routes from './routes/index.js';
+import { initializeDebugDirectory } from './lib/debug.js';
 
 const app = express();
 
@@ -60,6 +61,14 @@ app.get('/', (_req, res) => {
         'GET /api/events/search?q=:query': 'Search events',
         'GET /api/events/:id': 'Get event details',
       },
+      debug: {
+        'GET /api/debug/capture/:type': 'Manually capture HTML sample (dev only)',
+        'GET /api/debug/samples': 'List saved HTML samples (dev only)',
+        'GET /api/debug/samples/:id': 'Get specific sample with HTML (dev only)',
+        'DELETE /api/debug/samples/:id': 'Delete a sample (dev only)',
+        'POST /api/debug/cleanup': 'Clean up old samples (dev only)',
+        'GET /api/debug/types': 'List available capture types (dev only)',
+      },
     },
     filters: {
       '/api/players/stats': {
@@ -107,13 +116,18 @@ async function start() {
     // Initialize cache
     await cache.connect();
 
+    // Initialize debug directory
+    initializeDebugDirectory();
+
     const port = config.server.port;
+    const debugStatus = config.debug.enabled ? 'ENABLED' : 'DISABLED';
     app.listen(port, () => {
       console.log(`
 ╔═══════════════════════════════════════════════════════╗
 ║                    VLR.gg API                         ║
 ║                                                       ║
 ║  Server running on http://localhost:${port}             ║
+║  Debug mode: ${debugStatus.padEnd(42)}║
 ║                                                       ║
 ║  Endpoints:                                           ║
 ║    GET /api/matches/live     - Live matches           ║
@@ -125,6 +139,7 @@ async function start() {
 ║    GET /api/teams/rankings   - Team rankings          ║
 ║    GET /api/teams/:id        - Team profile           ║
 ║    GET /api/events           - Events list            ║
+║    GET /api/debug/*          - Debug endpoints        ║
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
       `);

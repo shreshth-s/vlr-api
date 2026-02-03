@@ -23,6 +23,13 @@ export const config = {
     retries: 3,
     retryDelay: 1000,
   },
+  debug: {
+    enabled: process.env.DEBUG_MODE === 'true' || process.env.NODE_ENV !== 'production',
+    sampleDir: './debug-samples',
+    maxSamples: 50,
+    captureOnError: true,
+    captureOnEmpty: true,
+  },
 } as const;
 
 export type Config = typeof config;

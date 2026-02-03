@@ -20,6 +20,9 @@ import {
   AgentRole,
 } from '../types/index.js';
 import { isT1Team, getT1TeamInfo } from '../data/tiers.js';
+import { ValidationResult } from '../types/debug.js';
+import { config } from '../config/index.js';
+import { saveSample } from '../lib/debug.js';
 
 export async function getPlayerProfile(playerId: string): Promise<PlayerProfile> {
   const $ = await scraper.fetch(`/player/${playerId}`);
@@ -259,7 +262,53 @@ export interface AgentStat {
   kd: number;
 }
 
+function validateLeaderboardData(entries: LeaderboardEntry[]): ValidationResult {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  if (entries.length === 0) {
+    errors.push('No entries found - selectors may be broken');
+  } else if (entries.length < 5) {
+    warnings.push(`Suspiciously few entries (${entries.length})`);
+  }
+
+  // Check for missing critical data
+  const missingNames = entries.filter(e => !e.player.name).length;
+  if (missingNames > 0) {
+    warnings.push(`${missingNames} entries missing player names`);
+  }
+
+  const zeroRatings = entries.filter(e => e.stats.rating === 0).length;
+  if (zeroRatings > entries.length / 2) {
+    warnings.push(`${zeroRatings}/${entries.length} entries have zero rating`);
+  }
+
+  const noAgents = entries.filter(e => e.agents.length === 0).length;
+  if (noAgents > entries.length / 2) {
+    warnings.push(`${noAgents}/${entries.length} entries missing agent data`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    warnings,
+    errors,
+  };
+}
+
+export interface LeaderboardResult {
+  entries: LeaderboardEntry[];
+  debug?: {
+    sampleId?: string;
+    validation: ValidationResult;
+  };
+}
+
 export async function getStatsLeaderboard(filters: StatsFilter = {}): Promise<LeaderboardEntry[]> {
+  const result = await getStatsLeaderboardWithValidation(filters);
+  return result.entries;
+}
+
+export async function getStatsLeaderboardWithValidation(filters: StatsFilter = {}): Promise<LeaderboardResult> {
   // Build query params
   const params = new URLSearchParams();
   if (filters.eventId) params.set('event_id', filters.eventId);
@@ -273,7 +322,7 @@ export async function getStatsLeaderboard(filters: StatsFilter = {}): Promise<Le
   if (filters.timespan) params.set('timespan', filters.timespan + 'd');
 
   const url = `/stats/?${params.toString()}`;
-  const $ = await scraper.fetch(url);
+  const { $, html } = await scraper.fetchWithHtml(url);
   const entries: LeaderboardEntry[] = [];
 
   $('.wf-table tbody tr').each((_, row) => {
@@ -459,7 +508,30 @@ export async function getStatsLeaderboard(filters: StatsFilter = {}): Promise<Le
     });
   }
 
-  return filteredEntries;
+  // Validate results and auto-capture on suspicious data
+  const validation = validateLeaderboardData(filteredEntries);
+  let sampleId: string | undefined;
+
+  if (config.debug.enabled && config.debug.captureOnEmpty && !validation.valid) {
+    try {
+      const sample = saveSample(
+        'player-stats',
+        `${config.vlr.baseUrl}${url}`,
+        html,
+        validation.errors.join('; '),
+        { filters, validation }
+      );
+      sampleId = sample.id;
+      console.warn(`[Debug] Auto-captured HTML sample ${sampleId} due to validation failure:`, validation.errors);
+    } catch (e) {
+      console.error('[Debug] Failed to auto-capture sample:', e);
+    }
+  }
+
+  return {
+    entries: filteredEntries,
+    debug: config.debug.enabled ? { sampleId, validation } : undefined,
+  };
 }
 
 export async function searchPlayers(query: string): Promise<Player[]> {

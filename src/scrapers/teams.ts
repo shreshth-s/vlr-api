@@ -16,6 +16,9 @@ import {
   MatchSummary,
   MatchStatus,
 } from '../types/index.js';
+import { ValidationResult } from '../types/debug.js';
+import { config } from '../config/index.js';
+import { saveSample } from '../lib/debug.js';
 
 const REGIONS = [
   'na',         // North America
@@ -35,9 +38,44 @@ const REGIONS = [
 
 export type Region = typeof REGIONS[number];
 
+function validateRankingsData(teams: Team[], region: string): ValidationResult {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  if (teams.length === 0) {
+    errors.push(`No teams found for region ${region} - selectors may be broken`);
+  } else if (teams.length < 5 && region === 'all') {
+    warnings.push(`Suspiciously few teams in global rankings (${teams.length})`);
+  }
+
+  const missingNames = teams.filter(t => !t.name).length;
+  if (missingNames > 0) {
+    warnings.push(`${missingNames} teams missing names`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    warnings,
+    errors,
+  };
+}
+
+export interface RankingsResult {
+  teams: Team[];
+  debug?: {
+    sampleId?: string;
+    validation: ValidationResult;
+  };
+}
+
 export async function getTeamRankings(region: Region | 'all' = 'all'): Promise<Team[]> {
+  const result = await getTeamRankingsWithValidation(region);
+  return result.teams;
+}
+
+export async function getTeamRankingsWithValidation(region: Region | 'all' = 'all'): Promise<RankingsResult> {
   const path = region === 'all' ? '/rankings' : `/rankings/${region}`;
-  const $ = await scraper.fetch(path);
+  const { $, html } = await scraper.fetchWithHtml(path);
   const teams: Team[] = [];
 
   if (region === 'all') {
@@ -59,7 +97,30 @@ export async function getTeamRankings(region: Region | 'all' = 'all'): Promise<T
     });
   }
 
-  return teams;
+  // Validate and auto-capture
+  const validation = validateRankingsData(teams, region);
+  let sampleId: string | undefined;
+
+  if (config.debug.enabled && config.debug.captureOnEmpty && !validation.valid) {
+    try {
+      const sample = saveSample(
+        'team-rankings',
+        `${config.vlr.baseUrl}${path}`,
+        html,
+        validation.errors.join('; '),
+        { region, validation }
+      );
+      sampleId = sample.id;
+      console.warn(`[Debug] Auto-captured HTML sample ${sampleId} due to validation failure:`, validation.errors);
+    } catch (e) {
+      console.error('[Debug] Failed to auto-capture sample:', e);
+    }
+  }
+
+  return {
+    teams,
+    debug: config.debug.enabled ? { sampleId, validation } : undefined,
+  };
 }
 
 function parseRankingRow($: CheerioAPI, $row: cheerio.Cheerio<cheerio.Element>): Team | null {

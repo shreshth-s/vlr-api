@@ -1,7 +1,11 @@
 node_modules/
-dist/
+debug-samples/
 .env
-.env.local
 *.log
-.DS_Store
-coverage/
+dist/
+.claude/
+CLAUDE.md
+nul
+project-descriptions.txt
+scripts/
+*.zip

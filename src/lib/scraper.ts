@@ -1,9 +1,18 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import * as cheerio from 'cheerio';
+import type { Element } from 'domhandler';
 import { config } from '../config/index.js';
+import { saveSample } from './debug.js';
+import { CaptureType, HtmlSample } from '../types/debug.js';
 
 export type CheerioAPI = cheerio.CheerioAPI;
-export type CheerioElement = cheerio.Element;
+export type CheerioElement = Element;
+
+export interface FetchWithHtmlResult {
+  $: CheerioAPI;
+  html: string;
+  url: string;
+}
 
 class Scraper {
   private client: AxiosInstance;
@@ -22,7 +31,7 @@ class Scraper {
     });
   }
 
-  async fetch(path: string, retries = config.scraper.retries): Promise<CheerioAPI> {
+  async fetch(path: string, retries: number = config.scraper.retries): Promise<CheerioAPI> {
     try {
       const url = path.startsWith('http') ? path : path;
       const response = await this.client.get(url);
@@ -33,6 +42,57 @@ class Scraper {
         return this.fetch(path, retries - 1);
       }
       throw this.formatError(error);
+    }
+  }
+
+  async fetchWithHtml(path: string, retries: number = config.scraper.retries): Promise<FetchWithHtmlResult> {
+    try {
+      const url = path.startsWith('http') ? path : path;
+      const response = await this.client.get(url);
+      const html = response.data as string;
+      return {
+        $: cheerio.load(html),
+        html,
+        url: `${config.vlr.baseUrl}${path}`,
+      };
+    } catch (error) {
+      if (retries > 0 && this.isRetryable(error)) {
+        await this.delay(config.scraper.retryDelay);
+        return this.fetchWithHtml(path, retries - 1);
+      }
+      throw this.formatError(error);
+    }
+  }
+
+  async captureSample(
+    type: CaptureType,
+    path: string,
+    context?: Record<string, unknown>
+  ): Promise<HtmlSample> {
+    if (!config.debug.enabled) {
+      throw new Error('Debug mode is disabled');
+    }
+
+    const { html, url } = await this.fetchWithHtml(path);
+    return saveSample(type, url, html, undefined, context);
+  }
+
+  async captureOnError(
+    type: CaptureType,
+    path: string,
+    html: string,
+    error: string,
+    context?: Record<string, unknown>
+  ): Promise<HtmlSample | null> {
+    if (!config.debug.enabled || !config.debug.captureOnError) {
+      return null;
+    }
+
+    try {
+      const url = `${config.vlr.baseUrl}${path}`;
+      return saveSample(type, url, html, error, context);
+    } catch {
+      return null;
     }
   }
 

@@ -13,11 +13,48 @@ import {
   MatchSummary,
   Standing,
 } from '../types/index.js';
+import { ValidationResult } from '../types/debug.js';
+import { config } from '../config/index.js';
+import { saveSample } from '../lib/debug.js';
 
 export type EventStatus = 'ongoing' | 'upcoming' | 'completed';
 
+function validateEventsData(events: Event[], status: string): ValidationResult {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  // Events list can legitimately be empty for some status filters
+  if (events.length === 0 && status === 'ongoing') {
+    warnings.push('No ongoing events found - this may be normal if no events are live');
+  }
+
+  const missingNames = events.filter(e => !e.name).length;
+  if (missingNames > 0) {
+    warnings.push(`${missingNames} events missing names`);
+  }
+
+  return {
+    valid: true, // Events can legitimately be empty
+    warnings,
+    errors,
+  };
+}
+
+export interface EventsResult {
+  events: Event[];
+  debug?: {
+    sampleId?: string;
+    validation: ValidationResult;
+  };
+}
+
 export async function getEvents(status: EventStatus = 'ongoing'): Promise<Event[]> {
-  const $ = await scraper.fetch('/events');
+  const result = await getEventsWithValidation(status);
+  return result.events;
+}
+
+export async function getEventsWithValidation(status: EventStatus = 'ongoing'): Promise<EventsResult> {
+  const { $, html } = await scraper.fetchWithHtml('/events');
   const events: Event[] = [];
 
   // Parse all event items
@@ -46,7 +83,13 @@ export async function getEvents(status: EventStatus = 'ongoing'): Promise<Event[
     if (event) events.push(event);
   });
 
-  return events;
+  // Validate
+  const validation = validateEventsData(events, status);
+
+  return {
+    events,
+    debug: config.debug.enabled ? { validation } : undefined,
+  };
 }
 
 function parseEventItem($: CheerioAPI, $item: cheerio.Cheerio<cheerio.Element>, status: EventStatus): Event | null {

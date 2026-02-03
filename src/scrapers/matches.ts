@@ -17,10 +17,46 @@ import {
   PlayerMatchStats,
   getAgentRole,
 } from '../types/index.js';
+import { ValidationResult } from '../types/debug.js';
+import { config } from '../config/index.js';
+import { saveSample } from '../lib/debug.js';
+
+function validateMatchesData(matches: MatchSummary[], type: string): ValidationResult {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  if (matches.length === 0 && type === 'results') {
+    errors.push('No matches found - selectors may be broken');
+  }
+
+  const missingTeamNames = matches.filter(m => !m.team1.name || !m.team2.name).length;
+  if (missingTeamNames > matches.length / 2 && matches.length > 0) {
+    warnings.push(`${missingTeamNames}/${matches.length} matches missing team names`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    warnings,
+    errors,
+  };
+}
+
+export interface MatchesResult {
+  matches: MatchSummary[];
+  debug?: {
+    sampleId?: string;
+    validation: ValidationResult;
+  };
+}
 
 export async function getMatches(type: 'live' | 'upcoming' | 'results'): Promise<MatchSummary[]> {
+  const result = await getMatchesWithValidation(type);
+  return result.matches;
+}
+
+export async function getMatchesWithValidation(type: 'live' | 'upcoming' | 'results'): Promise<MatchesResult> {
   const path = type === 'results' ? '/matches/results' : '/matches';
-  const $ = await scraper.fetch(path);
+  const { $, html } = await scraper.fetchWithHtml(path);
   const matches: MatchSummary[] = [];
 
   // Match cards are <a> tags with wf-module-item class
@@ -33,14 +69,39 @@ export async function getMatches(type: 'live' | 'upcoming' | 'results'): Promise
   });
 
   // Filter by status for upcoming/live
+  let filteredMatches = matches;
   if (type === 'live') {
-    return matches.filter(m => m.status === 'live');
-  }
-  if (type === 'upcoming') {
-    return matches.filter(m => m.status === 'upcoming');
+    filteredMatches = matches.filter(m => m.status === 'live');
+  } else if (type === 'upcoming') {
+    filteredMatches = matches.filter(m => m.status === 'upcoming');
   }
 
-  return matches;
+  // Validate and auto-capture
+  const validation = validateMatchesData(filteredMatches, type);
+  let sampleId: string | undefined;
+
+  if (config.debug.enabled && config.debug.captureOnEmpty && !validation.valid) {
+    try {
+      const captureType = type === 'results' ? 'matches-results' :
+                          type === 'live' ? 'matches-live' : 'matches-upcoming';
+      const sample = saveSample(
+        captureType,
+        `${config.vlr.baseUrl}${path}`,
+        html,
+        validation.errors.join('; '),
+        { type, validation }
+      );
+      sampleId = sample.id;
+      console.warn(`[Debug] Auto-captured HTML sample ${sampleId} due to validation failure:`, validation.errors);
+    } catch (e) {
+      console.error('[Debug] Failed to auto-capture sample:', e);
+    }
+  }
+
+  return {
+    matches: filteredMatches,
+    debug: config.debug.enabled ? { sampleId, validation } : undefined,
+  };
 }
 
 function parseMatchCard($: CheerioAPI, $el: cheerio.Cheerio<cheerio.Element>, pagePath: string): MatchSummary | null {
