@@ -9,6 +9,7 @@ import {
 } from '../scrapers/teams.js';
 import { cache, cacheKey } from '../lib/cache.js';
 import { ApiResponse, Team, TeamProfile } from '../types/index.js';
+import { T1_TEAMS, getT1Teams, TierStatus, VCTRegion } from '../data/tiers.js';
 
 const router = Router();
 
@@ -100,6 +101,59 @@ router.get('/regions', (_req: Request, res: Response) => {
       cn: 'China',
       jp: 'Japan',
     },
+  }));
+});
+
+// GET /teams/tiers - Get tier info
+router.get('/tiers', (_req: Request, res: Response) => {
+  res.json(response({
+    description: 'VCT 2026 Tier Classification',
+    tiers: {
+      t1: 'VCT International League (partners + ascended)',
+      t2: 'All other teams (Challengers, T3, etc.)',
+    },
+    statuses: {
+      partner: 'Franchised partner teams (10 per region)',
+      ascended: 'Teams promoted through Ascension (2 per region)',
+    },
+    regions: ['americas', 'emea', 'pacific', 'china'],
+    total_t1_teams: T1_TEAMS.length,
+  }));
+});
+
+// GET /teams/tiers/t1 - Get all T1 teams
+router.get('/tiers/t1', (req: Request, res: Response) => {
+  const status = req.query.status as TierStatus | undefined;
+  const region = req.query.region as VCTRegion | undefined;
+
+  if (status && !['partner', 'ascended'].includes(status)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid status. Valid values: partner, ascended',
+      code: 400,
+    });
+  }
+
+  if (region && !['americas', 'emea', 'pacific', 'china'].includes(region)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid region. Valid values: americas, emea, pacific, china',
+      code: 400,
+    });
+  }
+
+  const teams = getT1Teams({ status, region });
+  const grouped = {
+    americas: teams.filter(t => t.region === 'americas'),
+    emea: teams.filter(t => t.region === 'emea'),
+    pacific: teams.filter(t => t.region === 'pacific'),
+    china: teams.filter(t => t.region === 'china'),
+  };
+
+  res.json(response({
+    total: teams.length,
+    filters: { status: status || 'all', region: region || 'all' },
+    teams: region ? teams : grouped,
   }));
 });
 

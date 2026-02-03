@@ -36,6 +36,32 @@ router.get('/', async (req: Request, res: Response) => {
 // GET /players/stats - Get stats leaderboard
 router.get('/stats', async (req: Request, res: Response) => {
   try {
+    const tier = req.query.tier as string | undefined;
+    if (tier && !['t1', 't2'].includes(tier)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid tier. Valid values: t1, t2',
+        code: 400,
+      });
+    }
+
+    const tierStatus = req.query.tier_status as string | undefined;
+    if (tierStatus && !['partner', 'ascended'].includes(tierStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid tier_status. Valid values: partner, ascended',
+        code: 400,
+      });
+    }
+
+    if (tierStatus && tier !== 't1') {
+      return res.status(400).json({
+        success: false,
+        error: 'tier_status can only be used with tier=t1',
+        code: 400,
+      });
+    }
+
     const filters: StatsFilter = {
       eventId: req.query.event_id as string,
       eventSeries: req.query.event_series as string,
@@ -46,6 +72,8 @@ router.get('/stats', async (req: Request, res: Response) => {
       agent: req.query.agent as string,
       map: req.query.map as string,
       timespan: req.query.timespan as '30' | '60' | '90' | 'all',
+      tier: tier as 't1' | 't2' | undefined,
+      tierStatus: tierStatus as 'partner' | 'ascended' | undefined,
     };
 
     // Create cache key from filters

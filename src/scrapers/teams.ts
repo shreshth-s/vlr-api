@@ -294,10 +294,11 @@ export async function searchTeams(query: string): Promise<Team[]> {
   const $ = await scraper.fetch(`/search?q=${encodeURIComponent(query)}&type=teams`);
   const teams: Team[] = [];
 
-  $('.search-item').each((_, el) => {
+  $('a.search-item').each((_, el) => {
     const $item = $(el);
-    const link = $item.find('a').attr('href');
-    const id = parseId(link, /\/team\/(\d+)/);
+    // VLR search uses format: /search/r/team/{id}/idx
+    const link = $item.attr('href');
+    const id = parseId(link, /\/search\/r\/team\/(\d+)/);
     const name = cleanText($item.find('.search-item-title').text());
     const tag = cleanText($item.find('.search-item-desc').text());
     const logo = parseImageUrl($item.find('img').attr('src'));

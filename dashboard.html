@@ -249,7 +249,7 @@
 
   <div class="controls">
     <button class="btn" onclick="fetchAll()">Refresh All</button>
-    <select id="region" onchange="fetchAll()">
+    <select id="region" onchange="fetchStats()">
       <option value="na">North America</option>
       <option value="eu">Europe</option>
       <option value="ap">Asia Pacific</option>
@@ -257,11 +257,21 @@
       <option value="kr">Korea</option>
       <option value="jp">Japan</option>
     </select>
-    <select id="timespan" onchange="fetchAll()">
+    <select id="timespan" onchange="fetchStats()">
       <option value="60">Last 60 Days</option>
       <option value="30">Last 30 Days</option>
       <option value="90">Last 90 Days</option>
       <option value="all">All Time</option>
+    </select>
+    <select id="tier" onchange="onTierChange()">
+      <option value="">All Tiers</option>
+      <option value="t1">T1 Only (VCT International)</option>
+      <option value="t2">T2 Only (Challengers/T3)</option>
+    </select>
+    <select id="tierStatus" onchange="fetchStats()" disabled style="opacity:0.5">
+      <option value="">All Status</option>
+      <option value="partner">Partners Only</option>
+      <option value="ascended">Ascended Only</option>
     </select>
   </div>
 
@@ -292,7 +302,7 @@
 
     <!-- Stats Leaderboard - Full Stats -->
     <div class="card wide">
-      <h2>Player Stats Leaderboard <span class="badge">All 20+ Stats</span></h2>
+      <h2>Player Stats Leaderboard <span class="badge" id="tier-badge">All Tiers</span></h2>
       <div id="stats-leaderboard"><div class="loading">Loading...</div></div>
     </div>
 
@@ -340,6 +350,22 @@
 
     function getRegion() { return document.getElementById('region').value; }
     function getTimespan() { return document.getElementById('timespan').value; }
+    function getTier() { return document.getElementById('tier').value; }
+    function getTierStatus() { return document.getElementById('tierStatus').value; }
+
+    function onTierChange() {
+      const tier = getTier();
+      const tierStatusEl = document.getElementById('tierStatus');
+      if (tier === 't1') {
+        tierStatusEl.disabled = false;
+        tierStatusEl.style.opacity = '1';
+      } else {
+        tierStatusEl.disabled = true;
+        tierStatusEl.style.opacity = '0.5';
+        tierStatusEl.value = '';
+      }
+      fetchStats();
+    }
 
     // Live Matches
     async function fetchLive() {
@@ -448,11 +474,31 @@
     async function fetchStats() {
       const region = getRegion();
       const timespan = getTimespan();
-      const data = await fetchJSON(`${API}/players/stats?region=${region}&timespan=${timespan}&min_rounds=50`);
+      const tier = getTier();
+      const tierStatus = getTierStatus();
+
+      let url = `${API}/players/stats?region=${region}&timespan=${timespan}&min_rounds=50`;
+      if (tier) url += `&tier=${tier}`;
+      if (tier === 't1' && tierStatus) url += `&tier_status=${tierStatus}`;
+
+      const data = await fetchJSON(url);
       const el = document.getElementById('stats-leaderboard');
 
+      // Update tier badge
+      const tierBadge = document.getElementById('tier-badge');
+      if (tier === 't1') {
+        tierBadge.textContent = tierStatus ? `T1 ${tierStatus}` : 'T1 Only';
+        tierBadge.style.background = '#4ade8033'; tierBadge.style.color = '#4ade80';
+      } else if (tier === 't2') {
+        tierBadge.textContent = 'T2 Only';
+        tierBadge.style.background = '#fbbf2433'; tierBadge.style.color = '#fbbf24';
+      } else {
+        tierBadge.textContent = 'All Tiers';
+        tierBadge.style.background = '#2a2d35'; tierBadge.style.color = '#888';
+      }
+
       if (!data || data.length === 0) {
-        el.innerHTML = '<div class="no-data">No stats available</div>';
+        el.innerHTML = '<div class="no-data">No stats available for this tier filter</div>';
         return;
       }
 
@@ -465,6 +511,7 @@
               <tr>
                 <th>#</th>
                 <th>Player</th>
+                <th>Team</th>
                 <th>Agents</th>
                 <th>Rnd</th>
                 <th>Rating</th>
@@ -484,6 +531,7 @@
                 <tr>
                   <td class="rank">${i + 1}</td>
                   <td class="player-name">${e.player.name}</td>
+                  <td style="color:#888;font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.player.team || ''}">${e.player.team || '-'}</td>
                   <td class="agents">${e.agents?.slice(0, 3).join(', ') || '-'}</td>
                   <td class="stat">${e.stats.rounds}</td>
                   <td class="stat highlight">${e.stats.rating?.toFixed(2) || '-'}</td>
@@ -502,7 +550,7 @@
           </table>
         </div>
         <div style="margin-top:15px;color:#888;font-size:12px">
-          Showing: rounds, rating, ACS, K/D/A totals, KAST%, ADR, HS%, FK, FD, Clutch%, KMax
+          Showing ${data.length} players | Tier: ${tier || 'all'}
         </div>
       `;
 

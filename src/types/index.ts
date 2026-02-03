@@ -217,6 +217,8 @@ export interface StatsFilter {
   agent?: string;
   map?: string;
   timespan?: '30' | '60' | '90' | 'all';
+  tier?: 't1' | 't2';
+  tierStatus?: 'partner' | 'ascended';
 }
 
 export interface LeaderboardEntry {

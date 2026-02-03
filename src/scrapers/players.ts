@@ -19,6 +19,7 @@ import {
   getAgentRole,
   AgentRole,
 } from '../types/index.js';
+import { isT1Team, getT1TeamInfo } from '../data/tiers.js';
 
 export async function getPlayerProfile(playerId: string): Promise<PlayerProfile> {
   const $ = await scraper.fetch(`/player/${playerId}`);
@@ -287,11 +288,53 @@ export async function getStatsLeaderboard(filters: StatsFilter = {}): Promise<Le
     const $flag = $player.find('.flag');
     const countryCode = parseCountryCode($flag.attr('class'));
 
-    // Team
+    // Team - try multiple approaches
+    let teamName = '';
+    let teamId: string | undefined;
+
+    // Approach 1: Look for .mod-team class
     const $team = $row.find('.mod-team');
-    const teamName = cleanText($team.text());
-    const teamLink = $team.find('a').attr('href');
-    const teamId = parseId(teamLink, /\/team\/(\d+)/);
+    if ($team.length) {
+      teamName = cleanText($team.text());
+      const teamLink = $team.find('a').attr('href');
+      teamId = parseId(teamLink, /\/team\/(\d+)/);
+    }
+
+    // Approach 2: Look for team link in the player cell
+    if (!teamName) {
+      const $teamLink = $player.find('a[href*="/team/"]');
+      if ($teamLink.length) {
+        teamName = cleanText($teamLink.text());
+        teamId = parseId($teamLink.attr('href'), /\/team\/(\d+)/);
+      }
+    }
+
+    // Approach 3: Look for stats-player-country (current VLR format)
+    if (!teamName) {
+      const $teamDiv = $player.find('.stats-player-country');
+      if ($teamDiv.length) {
+        teamName = cleanText($teamDiv.text());
+      }
+    }
+
+    // Approach 4: Look for ge-text-light (team abbreviation often shown there)
+    if (!teamName) {
+      const $teamAbbr = $player.find('.ge-text-light');
+      if ($teamAbbr.length) {
+        teamName = cleanText($teamAbbr.text());
+      }
+    }
+
+    // Approach 5: Look for text after the player name link within the cell
+    if (!teamName) {
+      const $playerCell = $row.find('td').first();
+      const cellHtml = $playerCell.html() || '';
+      // Look for team name pattern after player link
+      const teamMatch = cellHtml.match(/<\/a>\s*(?:<[^>]+>)*\s*([A-Za-z0-9\s]+?)(?:\s*<|$)/);
+      if (teamMatch && teamMatch[1]) {
+        teamName = cleanText(teamMatch[1]);
+      }
+    }
 
     // Agents played - try multiple selectors
     const agents: string[] = [];
@@ -395,7 +438,28 @@ export async function getStatsLeaderboard(filters: StatsFilter = {}): Promise<Le
     }
   });
 
-  return entries;
+  // Apply tier filtering (try teamId first, fall back to team name)
+  let filteredEntries = entries;
+
+  if (filters.tier === 't1') {
+    filteredEntries = filteredEntries.filter(entry => {
+      // Try teamId first (more reliable), then team name
+      return isT1Team(entry.player.teamId) || isT1Team(entry.player.team);
+    });
+    if (filters.tierStatus) {
+      filteredEntries = filteredEntries.filter(entry => {
+        const teamInfo = getT1TeamInfo(entry.player.teamId) || getT1TeamInfo(entry.player.team);
+        return teamInfo?.status === filters.tierStatus;
+      });
+    }
+  } else if (filters.tier === 't2') {
+    filteredEntries = filteredEntries.filter(entry => {
+      // Not T1 by either ID or name
+      return !isT1Team(entry.player.teamId) && !isT1Team(entry.player.team);
+    });
+  }
+
+  return filteredEntries;
 }
 
 export async function searchPlayers(query: string): Promise<Player[]> {
