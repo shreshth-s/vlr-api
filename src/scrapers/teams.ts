@@ -78,24 +78,11 @@ export async function getTeamRankingsWithValidation(region: Region | 'all' = 'al
   const { $, html } = await scraper.fetchWithHtml(path);
   const teams: Team[] = [];
 
-  if (region === 'all') {
-    // Parse the global rankings table
-    $('tbody tr').each((_, row) => {
-      const $row = $(row);
-      const team = parseRankingRow($, $row);
-      if (team) teams.push(team);
-    });
-  } else {
-    // Regional rankings have a different structure
-    $('.wf-card.mod-scroll').each((_, card) => {
-      const $card = $(card);
-      $card.find('.rank-item').each((_, item) => {
-        const $item = $(item);
-        const team = parseRegionalRankingItem($, $item);
-        if (team) teams.push(team);
-      });
-    });
-  }
+  $('tbody tr').each((_, row) => {
+    const $row = $(row);
+    const team = parseRankingRow($, $row);
+    if (team) teams.push(team);
+  });
 
   // Validate and auto-capture
   const validation = validateRankingsData(teams, region);
@@ -130,7 +117,8 @@ function parseRankingRow($: CheerioAPI, $row: cheerio.Cheerio<cheerio.Element>):
   if (!id) return null;
 
   const rank = parseNumber($row.find('.rank-item-rank').text());
-  const name = cleanText($row.find('.rank-item-team').text());
+  const name = $row.find('.rank-item-team').attr('data-sort-value') ||
+    cleanText($row.find('.rank-item-team img').attr('alt') || '');
   const logo = parseImageUrl($row.find('.rank-item-team img').attr('src'));
   const rating = parseNumber($row.find('.rank-item-rating').text());
 
@@ -158,26 +146,6 @@ function parseRankingRow($: CheerioAPI, $row: cheerio.Cheerio<cheerio.Element>):
   };
 }
 
-function parseRegionalRankingItem($: CheerioAPI, $item: cheerio.Cheerio<cheerio.Element>): Team | null {
-  const $link = $item.find('a');
-  const href = $link.attr('href');
-  const id = parseId(href, /\/team\/(\d+)/);
-  if (!id) return null;
-
-  const rank = parseNumber($item.find('.rank-item-rank-num').text());
-  const name = cleanText($item.find('.ge-text').text());
-  const logo = parseImageUrl($item.find('img').attr('src'));
-  const $flag = $item.find('.flag');
-  const countryCode = parseCountryCode($flag.attr('class'));
-
-  return {
-    id,
-    name,
-    logo,
-    rank,
-    countryCode,
-  };
-}
 
 export async function getTeamProfile(teamId: string): Promise<TeamProfile> {
   const $ = await scraper.fetch(`/team/${teamId}`);

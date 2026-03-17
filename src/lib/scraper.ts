@@ -27,6 +27,7 @@ class Scraper {
         'Accept-Language': 'en-US,en;q=0.5',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
+        'Cookie': 'abok=1',
       },
     });
   }

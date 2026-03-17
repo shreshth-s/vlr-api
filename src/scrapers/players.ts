@@ -319,9 +319,10 @@ export async function getStatsLeaderboardWithValidation(filters: StatsFilter = {
   if (filters.minRating) params.set('min_rating', filters.minRating.toString());
   if (filters.agent) params.set('agent', filters.agent);
   if (filters.map) params.set('map', filters.map);
-  if (filters.timespan) params.set('timespan', filters.timespan + 'd');
+  if (filters.timespan && filters.timespan !== 'all') params.set('timespan', filters.timespan + 'd');
 
-  const url = `/stats/?${params.toString()}`;
+  const queryString = params.toString();
+  const url = queryString ? `/stats?${queryString}` : '/stats';
   const { $, html } = await scraper.fetchWithHtml(url);
   const entries: LeaderboardEntry[] = [];
 
