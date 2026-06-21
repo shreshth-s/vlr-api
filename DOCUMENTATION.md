@@ -11,21 +11,22 @@ A comprehensive, unofficial REST API for Valorant esports data scraped from [vlr
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
-2. [Dashboard](#dashboard)
-3. [Authentication](#authentication)
-4. [Rate Limiting](#rate-limiting)
-5. [Response Format](#response-format)
-6. [Caching](#caching)
-7. [API Endpoints](#api-endpoints)
+2. [Agent Setup](#agent-setup)
+3. [Dashboard](#dashboard)
+4. [Authentication](#authentication)
+5. [Rate Limiting](#rate-limiting)
+6. [Response Format](#response-format)
+7. [Caching](#caching)
+8. [API Endpoints](#api-endpoints)
    - [Matches](#matches)
    - [Players](#players)
    - [Teams](#teams)
    - [Events](#events)
-8. [Data Types](#data-types)
-9. [Error Handling](#error-handling)
-10. [Code Examples](#code-examples)
-11. [Environment Variables](#environment-variables)
-12. [Troubleshooting](#troubleshooting)
+9. [Data Types](#data-types)
+10. [Error Handling](#error-handling)
+11. [Code Examples](#code-examples)
+12. [Environment Variables](#environment-variables)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -76,6 +77,32 @@ npm start
 | `npm run build` | Compile TypeScript to `dist/` |
 | `npm start` | Run the compiled production server |
 | `npm run lint` | Run ESLint over `src/**/*.ts` |
+
+---
+
+## Agent Setup
+
+If you want a coding agent to set this repo up, give it [AGENT_SETUP.md](./AGENT_SETUP.md). That file is intentionally written as an execution checklist with exact commands, expected URLs, verification checks, and troubleshooting steps. Agents that automatically read repository instructions can also use [AGENTS.md](./AGENTS.md).
+
+You can also copy-paste this prompt into Codex, Claude, Hermes, or another coding agent:
+
+```text
+Set up shreshth-s/vlr-api locally and tell me when the dashboard is ready.
+
+Use this repo: https://github.com/shreshth-s/vlr-api
+Default branch: master
+
+Do the setup end to end:
+- Install dependencies with npm install.
+- Run npm run lint and npm run build.
+- Start the API with npm run dev.
+- Start the dashboard with npm run dashboard in a second terminal/session.
+- Verify http://localhost:3000/api/matches/upcoming returns JSON with success true.
+- Verify http://127.0.0.1:8080/dashboard.html returns 200.
+- Keep both servers running and give me the dashboard URL.
+
+Do not run npm audit fix unless I ask. Redis is optional; in-memory cache is fine locally. If ports are busy, use PORT or DASHBOARD_PORT and tell me the final URLs.
+```
 
 ---
 
@@ -1578,6 +1605,8 @@ vlr-api/
 │   ├── types/
 │   │   └── index.ts         # TypeScript type definitions
 │   └── index.ts             # Express app entry point
+├── AGENT_SETUP.md           # Copy-paste setup guide for coding agents
+├── AGENTS.md                # Root instructions for agentic coding tools
 ├── package.json
 ├── tsconfig.json
 ├── DOCUMENTATION.md         # This file

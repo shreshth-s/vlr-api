@@ -4,7 +4,6 @@ debug-samples/
 *.log
 dist/
 .claude/
-CLAUDE.md
 nul
 project-descriptions.txt
 scripts/
