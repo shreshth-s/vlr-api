@@ -7,6 +7,7 @@ import { CaptureType, HtmlSample } from '../types/debug.js';
 
 export type CheerioAPI = cheerio.CheerioAPI;
 export type CheerioElement = Element;
+export type CheerioSelection = cheerio.Cheerio<CheerioElement>;
 
 export interface FetchWithHtmlResult {
   $: CheerioAPI;
@@ -129,7 +130,7 @@ class Scraper {
 export const scraper = new Scraper();
 
 // Helper functions for common parsing tasks
-export function parseText($el: cheerio.Cheerio<CheerioElement>): string {
+export function parseText($el: CheerioSelection): string {
   return $el.text().trim();
 }
 

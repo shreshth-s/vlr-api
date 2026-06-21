@@ -83,7 +83,7 @@ app.get('/', (_req, res) => {
         timespan: '30, 60, 90, or all',
       },
     },
-    github: 'https://github.com/yourusername/vlr-api',
+    github: 'https://github.com/shreshth-s/vlr-api',
     disclaimer: 'This is an unofficial API. Not affiliated with vlr.gg.',
   });
 });

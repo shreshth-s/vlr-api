@@ -8,7 +8,7 @@ import {
   Region,
 } from '../scrapers/teams.js';
 import { cache, cacheKey } from '../lib/cache.js';
-import { ApiResponse, Team, TeamProfile } from '../types/index.js';
+import { ApiResponse, MatchSummary, Team, TeamProfile } from '../types/index.js';
 import { T1_TEAMS, getT1Teams, TierStatus, VCTRegion } from '../data/tiers.js';
 
 const router = Router();
@@ -185,7 +185,7 @@ router.get('/:id/matches', async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
 
     const key = cacheKey('team', id, 'matches', type, page);
-    const cached = await cache.get<{ matches: any[]; hasMore: boolean }>(key);
+    const cached = await cache.get<{ matches: MatchSummary[]; hasMore: boolean }>(key);
 
     if (cached) {
       return res.json(response(cached.data, true));

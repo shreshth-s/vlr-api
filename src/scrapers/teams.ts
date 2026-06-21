@@ -6,6 +6,7 @@ import {
   parseCountryCode,
   cleanText,
   CheerioAPI,
+  CheerioSelection,
 } from '../lib/scraper.js';
 import {
   Team,
@@ -110,7 +111,7 @@ export async function getTeamRankingsWithValidation(region: Region | 'all' = 'al
   };
 }
 
-function parseRankingRow($: CheerioAPI, $row: cheerio.Cheerio<cheerio.Element>): Team | null {
+function parseRankingRow($: CheerioAPI, $row: CheerioSelection): Team | null {
   const $link = $row.find('a');
   const href = $link.attr('href');
   const id = parseId(href, /\/team\/(\d+)/);

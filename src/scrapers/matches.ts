@@ -1,12 +1,12 @@
 import {
   scraper,
-  parseText,
   parseNumber,
   parseId,
   parseImageUrl,
   parseCountryCode,
   cleanText,
   CheerioAPI,
+  CheerioSelection,
 } from '../lib/scraper.js';
 import {
   MatchSummary,
@@ -104,7 +104,7 @@ export async function getMatchesWithValidation(type: 'live' | 'upcoming' | 'resu
   };
 }
 
-function parseMatchCard($: CheerioAPI, $el: cheerio.Cheerio<cheerio.Element>, pagePath: string): MatchSummary | null {
+function parseMatchCard($: CheerioAPI, $el: CheerioSelection, pagePath: string): MatchSummary | null {
   const link = $el.attr('href');
   const id = parseId(link, /\/(\d+)/);
   if (!id) return null;
@@ -154,7 +154,7 @@ function parseMatchCard($: CheerioAPI, $el: cheerio.Cheerio<cheerio.Element>, pa
   };
 }
 
-function parseMatchTeam($: CheerioAPI, $team: cheerio.Cheerio<cheerio.Element>): MatchTeam {
+function parseMatchTeam($: CheerioAPI, $team: CheerioSelection): MatchTeam {
   // Team name
   const name = cleanText($team.find('.match-item-vs-team-name').text());
 
@@ -241,7 +241,7 @@ export async function getMatchDetails(matchId: string): Promise<MatchDetails> {
   };
 }
 
-function parseMatchHeaderTeam($: CheerioAPI, $team: cheerio.Cheerio<cheerio.Element>): MatchTeam {
+function parseMatchHeaderTeam($: CheerioAPI, $team: CheerioSelection): MatchTeam {
   const name = cleanText($team.find('.wf-title-med').text());
   const tag = cleanText($team.find('.wf-title-med').text()); // Usually same as name on match page
   const logo = parseImageUrl($team.find('img').attr('src'));
@@ -300,7 +300,7 @@ function parseMapResults($: CheerioAPI): MapResult[] {
   return maps;
 }
 
-function parsePlayerStats($: CheerioAPI, $table: cheerio.Cheerio<cheerio.Element>): PlayerMatchStats[] {
+function parsePlayerStats($: CheerioAPI, $table: CheerioSelection): PlayerMatchStats[] {
   const players: PlayerMatchStats[] = [];
 
   $table.find('tbody tr').each((_, row) => {
@@ -317,7 +317,7 @@ function parsePlayerStats($: CheerioAPI, $table: cheerio.Cheerio<cheerio.Element
     // If still no agent, try getting from src path
     if (!agentName) {
       const src = $agentImg.attr('src') || '';
-      const srcMatch = src.match(/\/([^\/]+)\.png$/i);
+      const srcMatch = src.match(/\/([^/]+)\.png$/i);
       if (srcMatch) {
         agentName = srcMatch[1];
       }

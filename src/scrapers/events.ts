@@ -5,6 +5,7 @@ import {
   parseImageUrl,
   cleanText,
   CheerioAPI,
+  CheerioSelection,
 } from '../lib/scraper.js';
 import {
   Event,
@@ -15,7 +16,6 @@ import {
 } from '../types/index.js';
 import { ValidationResult } from '../types/debug.js';
 import { config } from '../config/index.js';
-import { saveSample } from '../lib/debug.js';
 
 export type EventStatus = 'ongoing' | 'upcoming' | 'completed';
 
@@ -54,7 +54,7 @@ export async function getEvents(status: EventStatus = 'ongoing'): Promise<Event[
 }
 
 export async function getEventsWithValidation(status: EventStatus = 'ongoing'): Promise<EventsResult> {
-  const { $, html } = await scraper.fetchWithHtml('/events');
+  const { $ } = await scraper.fetchWithHtml('/events');
   const events: Event[] = [];
 
   // Parse all event items
@@ -92,7 +92,7 @@ export async function getEventsWithValidation(status: EventStatus = 'ongoing'): 
   };
 }
 
-function parseEventItem($: CheerioAPI, $item: cheerio.Cheerio<cheerio.Element>, status: EventStatus): Event | null {
+function parseEventItem($: CheerioAPI, $item: CheerioSelection, status: EventStatus): Event | null {
   // $item is the <a> tag itself
   const href = $item.attr('href');
   const id = parseId(href, /\/event\/(\d+)/);

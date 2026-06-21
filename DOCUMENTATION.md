@@ -11,40 +11,100 @@ A comprehensive, unofficial REST API for Valorant esports data scraped from [vlr
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
-2. [Authentication](#authentication)
-3. [Rate Limiting](#rate-limiting)
-4. [Response Format](#response-format)
-5. [Caching](#caching)
-6. [API Endpoints](#api-endpoints)
+2. [Dashboard](#dashboard)
+3. [Authentication](#authentication)
+4. [Rate Limiting](#rate-limiting)
+5. [Response Format](#response-format)
+6. [Caching](#caching)
+7. [API Endpoints](#api-endpoints)
    - [Matches](#matches)
    - [Players](#players)
    - [Teams](#teams)
    - [Events](#events)
-7. [Data Types](#data-types)
-8. [Error Handling](#error-handling)
-9. [Code Examples](#code-examples)
-10. [Environment Variables](#environment-variables)
+8. [Data Types](#data-types)
+9. [Error Handling](#error-handling)
+10. [Code Examples](#code-examples)
+11. [Environment Variables](#environment-variables)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Getting Started
 
+### Prerequisites
+
+- Node.js 20 or newer
+- npm
+- Network access to [vlr.gg](https://www.vlr.gg), since data is scraped live
+- Optional: Redis, if you want a persistent/shared cache
+
 ### Installation
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/shreshth-s/vlr-api.git
 cd vlr-api
 
 # Install dependencies
 npm install
 
-# Start development server (with hot reload)
+# Start the API development server (with hot reload)
 npm run dev
+```
 
-# OR build and start production server
+The API should now be available at:
+
+- `http://localhost:3000`
+- `http://localhost:3000/api/matches/upcoming`
+
+### Production Run
+
+```bash
+# Build TypeScript into dist/
 npm run build
+
+# Start the compiled API
 npm start
+```
+
+### Useful Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start the API with hot reload |
+| `npm run dashboard` | Serve the local dashboard on port 8080 |
+| `npm run build` | Compile TypeScript to `dist/` |
+| `npm start` | Run the compiled production server |
+| `npm run lint` | Run ESLint over `src/**/*.ts` |
+
+---
+
+## Dashboard
+
+The repository includes a standalone dashboard at `dashboard.html`. It expects the API to be running at `http://localhost:3000`.
+
+Start the API in one terminal:
+
+```bash
+npm run dev
+```
+
+Serve the dashboard in a second terminal:
+
+```bash
+npm run dashboard
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8080/dashboard.html
+```
+
+You can change the dashboard host or port with:
+
+```bash
+DASHBOARD_HOST=0.0.0.0 DASHBOARD_PORT=8081 npm run dashboard
 ```
 
 ### Dependencies
@@ -1443,12 +1503,53 @@ curl "http://localhost:3000/api/events/search?q=vct"
 |----------|---------|-------------|
 | `PORT` | `3000` | Server port |
 | `REDIS_URL` | (none) | Redis connection URL for caching |
+| `NODE_ENV` | (none) | Set to `production` for production behavior |
+| `DEBUG_MODE` | `true` outside production | Enables debug sample capture and debug endpoints |
+| `ENABLE_DEBUG` | (none) | Alias for enabling debug endpoints in production |
+| `DASHBOARD_HOST` | `127.0.0.1` | Host used by `npm run dashboard` |
+| `DASHBOARD_PORT` | `8080` | Port used by `npm run dashboard` |
 
-**Example `.env` file:**
-```env
-PORT=3000
-REDIS_URL=redis://localhost:6379
+**Example shell usage:**
+```bash
+PORT=3000 REDIS_URL=redis://localhost:6379 DEBUG_MODE=false npm run dev
 ```
+
+---
+
+## Troubleshooting
+
+### Port Already In Use
+
+If the API cannot start because port `3000` is busy, choose another port:
+
+```bash
+PORT=3001 npm run dev
+```
+
+If you change the API port, update `API` in `dashboard.html` from `http://localhost:3000/api` to the new port.
+
+### Dashboard Does Not Load Data
+
+Make sure both local servers are running:
+
+```bash
+npm run dev
+npm run dashboard
+```
+
+Then verify the API responds:
+
+```bash
+curl http://localhost:3000/api/matches/upcoming
+```
+
+### Redis Is Optional
+
+If `REDIS_URL` is not set, the API automatically uses an in-memory cache. This is expected for local development.
+
+### Debug Samples
+
+In development, failed or empty scrapes may write HTML samples to `debug-samples/`. These files are ignored by Git and are useful when VLR markup changes.
 
 ---
 

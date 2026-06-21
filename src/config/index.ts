@@ -1,3 +1,5 @@
+const debugMode = process.env.DEBUG_MODE ?? process.env.ENABLE_DEBUG;
+
 export const config = {
   vlr: {
     baseUrl: 'https://www.vlr.gg',
@@ -24,7 +26,7 @@ export const config = {
     retryDelay: 1000,
   },
   debug: {
-    enabled: process.env.DEBUG_MODE === 'true' || process.env.NODE_ENV !== 'production',
+    enabled: debugMode === undefined ? process.env.NODE_ENV !== 'production' : debugMode === 'true',
     sampleDir: './debug-samples',
     maxSamples: 50,
     captureOnError: true,

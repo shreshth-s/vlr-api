@@ -56,8 +56,10 @@ export interface Player {
   countryCode?: string;
   team?: string;
   teamId?: string;
+  teamLogo?: string;
   image?: string;
   twitter?: string;
+  twitch?: string;
 }
 
 export interface PlayerProfile extends Player {
@@ -77,7 +79,7 @@ export interface TeamHistoryEntry {
 export interface EventPlacement {
   eventId: string;
   eventName: string;
-  placement: string;
+  placement?: string;
   prize?: number;
   date?: string;
 }

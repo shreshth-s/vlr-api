@@ -1,6 +1,5 @@
 import {
   scraper,
-  parseText,
   parseNumber,
   parseId,
   parseImageUrl,
@@ -70,8 +69,10 @@ export async function getPlayerProfile(playerId: string): Promise<PlayerProfile>
     countryCode,
     team: team || undefined,
     teamId,
+    teamLogo,
     image,
     twitter,
+    twitch,
     earnings: earnings || undefined,
     teamHistory,
     pastEvents,
@@ -393,7 +394,7 @@ export async function getStatsLeaderboardWithValidation(filters: StatsFilter = {
       // Try to extract from src if no title/alt
       if (!agent) {
         const src = $(img).attr('src') || '';
-        const match = src.match(/\/([^\/]+)\.png$/i);
+        const match = src.match(/\/([^/]+)\.png$/i);
         if (match) agent = match[1];
       }
       if (agent) agents.push(agent);

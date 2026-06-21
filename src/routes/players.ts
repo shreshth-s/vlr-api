@@ -5,6 +5,8 @@ import {
   getPlayerAgentStats,
   getStatsLeaderboard,
   searchPlayers,
+  AgentStat,
+  PlayerMatchEntry,
 } from '../scrapers/players.js';
 import { getMatchDetails } from '../scrapers/matches.js';
 import { cache, cacheKey } from '../lib/cache.js';
@@ -78,7 +80,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 
     // Create cache key from filters
     const filterKey = Object.entries(filters)
-      .filter(([_, v]) => v !== undefined)
+      .filter(([, v]) => v !== undefined)
       .map(([k, v]) => `${k}:${v}`)
       .join('_') || 'default';
 
@@ -125,7 +127,7 @@ router.get('/:id/matches', async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
 
     const key = cacheKey('player', id, 'matches', page);
-    const cached = await cache.get<{ matches: any[]; hasMore: boolean }>(key);
+    const cached = await cache.get<{ matches: PlayerMatchEntry[]; hasMore: boolean }>(key);
 
     if (cached) {
       return res.json(response(cached.data, true));
@@ -147,7 +149,7 @@ router.get('/:id/agents', async (req: Request, res: Response) => {
     const timespan = (req.query.timespan as '30' | '60' | '90' | 'all') || 'all';
 
     const key = cacheKey('player', id, 'agents', timespan);
-    const cached = await cache.get<any[]>(key);
+    const cached = await cache.get<AgentStat[]>(key);
 
     if (cached) {
       return res.json(response(cached.data, true));

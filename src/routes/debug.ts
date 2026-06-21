@@ -14,12 +14,11 @@ const router = Router();
 // Middleware to restrict debug routes in production
 const debugGuard = (_req: Request, res: Response, next: NextFunction) => {
   const isProd = process.env.NODE_ENV === 'production';
-  const debugEnabled = process.env.ENABLE_DEBUG === 'true';
 
-  if (isProd && !debugEnabled) {
+  if (isProd && !config.debug.enabled) {
     return res.status(403).json({
       success: false,
-      error: 'Debug endpoints disabled in production. Set ENABLE_DEBUG=true to enable.',
+      error: 'Debug endpoints disabled in production. Set DEBUG_MODE=true or ENABLE_DEBUG=true to enable.',
       code: 403,
     });
   }
